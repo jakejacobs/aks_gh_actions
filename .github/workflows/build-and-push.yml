@@ -1,0 +1,86 @@
+name: Build, Push, and Deploy to AKS
+
+on:
+  push:
+    branches: ["main"]
+
+  workflow_dispatch: # This allows us to manually trigger the workflow from the GitHub UI
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: acrghactions123
+  AKS_NAME: ecommerce-aks-cluster
+  RG_NAME: ecommerce-rg
+
+jobs:
+  # ==========================================
+  # JOB 1: CONTINUOUS INTEGRATION (CI)
+  # ==========================================
+  build-ci:
+    runs-on: ubuntu-latest
+    # We declare an output variable so Job 2 can use the hash
+    # This broadcasts the variable out to the main GitHub engine.
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.COMMIT_HASH }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Generate unique image tag
+        id: set_tag
+        run: echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log into Azure Container Registry
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and push to ACR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.ACR_NAME }}.azurecr.io/my-ecommerce-api:${{ steps.set_tag.outputs.COMMIT_HASH }}
+
+  # ==========================================
+  # JOB 2: CONTINUOUS DEPLOYMENT (CD)
+  # ==========================================
+  deploy-cd:
+    # CRITICAL: This tells GitHub to wait for CI to finish successfully before starting
+    needs: build-ci
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # We have to log into Azure again because this is a brand new server
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ env.RG_NAME }}
+          cluster-name: ${{ env.AKS_NAME }}
+
+      - name: Deploy to AKS
+        uses: Azure/k8s-deploy@v5
+        with:
+          manifests: |
+            deployment.yaml
+          # We grab the tag that Job 1 passed to us
+          images: |
+            ${{ env.ACR_NAME }}.azurecr.io/my-ecommerce-api:${{ needs.build-ci.outputs.image_tag }}
