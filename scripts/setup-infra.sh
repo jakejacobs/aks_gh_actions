@@ -83,15 +83,22 @@ else
     echo "Role assignment already exists. Skipping."
 fi
 
-# --- 7. OIDC FEDERATED CREDENTIAL ---
-echo "Configuring GitHub OIDC Trust..."
-# We wrap this in a try/catch style block because checking for specific federated credentials via CLI is messy
+# --- 7. OIDC FEDERATED CREDENTIALS (CI & CD) ---
+echo "Configuring GitHub OIDC Trust for CI (Main Branch)..."
 az ad app federated-credential create --id $APP_ID --parameters "{
   \"name\": \"github-actions-trust\",
   \"issuer\": \"https://token.actions.githubusercontent.com\",
   \"subject\": \"repo:${GH_ORG}/${GH_REPO}:ref:refs/heads/main\",
   \"audiences\": [\"api://AzureADTokenExchange\"]
-}" 2>/dev/null || echo "Federated credential 'github-actions-trust' already exists or there was an overwrite. Skipping."
+}" 2>/dev/null || echo "CI federated credential already exists."
+
+echo "Configuring GitHub OIDC Trust for CD (Production Environment)..."
+az ad app federated-credential create --id $APP_ID --parameters "{
+  \"name\": \"github-actions-trust-production\",
+  \"issuer\": \"https://token.actions.githubusercontent.com\",
+  \"subject\": \"repo:${GH_ORG}/${GH_REPO}:environment:production\",
+  \"audiences\": [\"api://AzureADTokenExchange\"]
+}" 2>/dev/null || echo "CD federated credential already exists."
 
 # --- 8. AKS CLUSTER ---
 AKS_CHECK=$(az aks show --name $AKS_NAME --resource-group $RG_NAME --query id -o tsv 2>/dev/null || echo "")

@@ -2,7 +2,7 @@ const express = require('express')
 const app = express()
 const PORT = 3000
 
-app.get('/api/products', (req, res) => {
+app.get('/products', (req, res) => {
     res.json([
         { id: 1, name: 'Laptop', price: 999 },
         { id: 2, name: 'Headphones', price: 199 },
