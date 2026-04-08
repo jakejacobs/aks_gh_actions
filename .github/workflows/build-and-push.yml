@@ -1,8 +1,9 @@
 name: Build, Push, and Deploy to AKS
 
 on:
-  push:
-    branches: ["main"]
+  # push:
+  #   branches:
+  #     - main
 
   workflow_dispatch: # This allows us to manually trigger the workflow from the GitHub UI
 permissions:
@@ -15,9 +16,6 @@ env:
   RG_NAME: ecommerce-rg
 
 jobs:
-  # ==========================================
-  # JOB 1: CONTINUOUS INTEGRATION (CI)
-  # ==========================================
   build-ci:
     runs-on: ubuntu-latest
     # We declare an output variable so Job 2 can use the hash
@@ -49,12 +47,14 @@ jobs:
           push: true
           tags: ${{ env.ACR_NAME }}.azurecr.io/my-ecommerce-api:${{ steps.set_tag.outputs.COMMIT_HASH }}
 
-  # ==========================================
-  # JOB 2: CONTINUOUS DEPLOYMENT (CD)
-  # ==========================================
   deploy-cd:
     # CRITICAL: This tells GitHub to wait for CI to finish successfully before starting
     needs: build-ci
+
+    environment:
+      name: production
+      url: http://${{ steps.get_ip.outputs.INGRESS_IP }}
+
     runs-on: ubuntu-latest
 
     steps:
@@ -83,3 +83,12 @@ jobs:
           # We grab the tag that Job 1 passed to us
           images: |
             ${{ env.ACR_NAME }}.azurecr.io/my-ecommerce-api:${{ needs.build-ci.outputs.image_tag }}
+
+      - name: Get Ingress IP for GitHub URL
+        id: get_ip
+        run: |
+          # We use jsonpath to extract just the raw IP address from the Ingress object
+          RAW_IP=$(kubectl get ingress api-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+          # We save it to the runner's output file so the 'environment.url' block can use it
+          echo "INGRESS_IP=$RAW_IP" >> $GITHUB_OUTPUT

@@ -30,7 +30,7 @@ az aks create \
 
 az aks get-credentials --resource-group ecommerce-rg --name ecommerce-aks-cluster
 
-kubectl apply -f k8s/deployment.yaml
+kubectl apply -f deployment.yaml
 
 kubectl get services -w
 
