@@ -14,12 +14,11 @@ spec:
     spec:
       containers:
         - name: backend
-          image: acrghactions123.azurecr.io/my-ecommerce-api:latest
+          image: ecommerceacrstudent123.azurecr.io/my-ecommerce-api:latest
           ports:
             - containerPort: 3000
 
 ---
-# CHANGED: This is now a private, internal-only service
 apiVersion: v1
 kind: Service
 metadata:
@@ -34,22 +33,19 @@ spec:
       targetPort: 3000
 
 ---
-# The Ingress Rule (The Routing Instructions for NGINX)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: api-ingress
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    # If the user hits a bad URL, rewrite it cleanly
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  # We removed the rewrite annotation completely
 spec:
+  ingressClassName: nginx # This officially links the rule to the NGINX controller
   rules:
     - http:
         paths:
-          # If someone goes to http://<YOUR_IP>/api, send them to the Node app
-          - path: /api/?(.*)
-            pathType: ImplementationSpecific
+          # Exact match: NGINX simply passes the exact URL through to the backend
+          - path: /api/products
+            pathType: Prefix
             backend:
               service:
                 name: backend-internal-service
