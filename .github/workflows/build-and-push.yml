@@ -1,9 +1,9 @@
 name: Build, Push, and Deploy to AKS
 
 on:
-  # push:
-  #   branches:
-  #     - main
+  push:
+    branches:
+      - main
 
   workflow_dispatch: # This allows us to manually trigger the workflow from the GitHub UI
 permissions:
