@@ -35,3 +35,13 @@ kubectl apply -f deployment.yaml
 kubectl get services -w
 
 az group delete --name ecommerce-rg --yes --no-wait
+
+# Github Environments
+
+1. Click Settings -> Environments
+2. Click New environment. Name it production.
+3. Check the box for Required reviewers and add yourself as a reviewer.
+
+# Commands
+
+kubectl logs -n ingress-basic -l app.kubernetes.io/name=ingress-nginx -f

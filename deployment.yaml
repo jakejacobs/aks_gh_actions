@@ -37,13 +37,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: api-ingress
-  # We removed the rewrite annotation completely
 spec:
-  ingressClassName: nginx # This officially links the rule to the NGINX controller
+  ingressClassName: nginx # This links the rule to the NGINX controller
   rules:
     - http:
         paths:
-          # Exact match: NGINX simply passes the exact URL through to the backend
+          # NGINX simply passes the exact URL through to the backend
           - path: /api/products
             pathType: Prefix
             backend:
@@ -51,3 +50,7 @@ spec:
                 name: backend-internal-service
                 port:
                   number: 80
+
+# Internet --> Cloud Load Balancer --> Service
+# Internet --> Cloud Load Balancer -->> Ingress rules (/api/users) --> Service 1
+#                                                     (/api/priducts) --> Service 2
